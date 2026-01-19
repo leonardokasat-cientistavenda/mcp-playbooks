@@ -1,0 +1,33 @@
+{
+  "name": "mcp-mattermost",
+  "version": "1.0.0",
+  "description": "MCP server para Mattermost com suporte completo a Playbooks, Runs, Tasks e Context Engineering",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "mcp",
+    "mattermost",
+    "playbooks",
+    "context-engineering",
+    "llm"
+  ],
+  "author": "MS Agentes",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
