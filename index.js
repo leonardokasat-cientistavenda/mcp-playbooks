@@ -277,6 +277,7 @@ async function handleTool(name, args) {
         create_public_playbook_run: true,
         checklists: args.checklists || defaultChecklists,
         member_ids: [userId],
+        reminder_timer_default_seconds: 86400, // 24 horas
       });
       return { content: [{ type: 'text', text: JSON.stringify(playbook, null, 2) }] };
     }
