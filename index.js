@@ -53,6 +53,19 @@ async function getTeamId() {
   return cachedTeamId;
 }
 
+// Helper para pegar user_id do token
+let cachedUserId = null;
+async function getUserId() {
+  if (cachedUserId) return cachedUserId;
+  
+  const response = await fetch(`${MATTERMOST_URL}/api/v4/users/me`, {
+    headers: { 'Authorization': `Bearer ${MATTERMOST_TOKEN}` }
+  });
+  const user = await response.json();
+  cachedUserId = user.id;
+  return cachedUserId;
+}
+
 // Definição das tools
 const tools = [
   {
@@ -194,6 +207,7 @@ const tools = [
 // Implementação das tools
 async function handleTool(name, args) {
   const teamId = await getTeamId();
+  const userId = await getUserId();
   
   switch (name) {
     case 'playbook_list': {
@@ -259,8 +273,10 @@ async function handleTool(name, args) {
         title: args.name,
         description: args.description || 'Ciclo Epistemológico M0-M4',
         team_id: teamId,
-        checklists: args.checklists || defaultChecklists,
+        public: true,
         create_public_playbook_run: true,
+        checklists: args.checklists || defaultChecklists,
+        member_ids: [userId],
       });
       return { content: [{ type: 'text', text: JSON.stringify(playbook, null, 2) }] };
     }
@@ -282,8 +298,8 @@ async function handleTool(name, args) {
       const run = await playbooksRequest('/runs', 'POST', {
         playbook_id: args.playbook_id,
         name: args.name,
+        owner_user_id: userId,
         team_id: teamId,
-        channel_id: args.channel_id || undefined,
       });
       return { content: [{ type: 'text', text: JSON.stringify(run, null, 2) }] };
     }
@@ -313,7 +329,7 @@ async function handleTool(name, args) {
       await playbooksRequest(
         `/runs/${args.run_id}/checklists/${args.checklist_index}/item/${args.item_index}/state`,
         'PUT',
-        { new_state: 'open' }
+        { new_state: '' }
       );
       return { content: [{ type: 'text', text: `Item desmarcado.` }] };
     }
