@@ -48,7 +48,7 @@ export class MattermostClient {
       return { status: 'ok' } as T;
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
   }
 
   // ==========================================================================
