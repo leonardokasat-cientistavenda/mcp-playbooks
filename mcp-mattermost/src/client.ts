@@ -163,10 +163,24 @@ export class MattermostClient {
     return this.request<Team[]>('/teams');
   }
 
+  /**
+   * Update team props using full update (GET + merge + PUT).
+   * The PATCH endpoint ignores `props` field, so we need to use full PUT.
+   */
   async teamUpdateProps(teamId: string, props: Record<string, any>): Promise<Team> {
-    return this.request<Team>(`/teams/${teamId}/patch`, {
+    // Get current team state
+    const team = await this.teamGet(teamId);
+    
+    // Merge props
+    const mergedProps = { ...(team.props ?? {}), ...props };
+    
+    // Full update with merged props
+    return this.request<Team>(`/teams/${teamId}`, {
       method: 'PUT',
-      body: JSON.stringify({ props }),
+      body: JSON.stringify({
+        ...team,
+        props: mergedProps,
+      }),
     });
   }
 
@@ -222,10 +236,24 @@ export class MattermostClient {
     });
   }
 
+  /**
+   * Update channel props using full update (GET + merge + PUT).
+   * The PATCH endpoint ignores `props` field, so we need to use full PUT.
+   */
   async channelUpdateProps(channelId: string, props: Record<string, any>): Promise<Channel> {
-    return this.request<Channel>(`/channels/${channelId}/patch`, {
+    // Get current channel state
+    const channel = await this.channelGet(channelId);
+    
+    // Merge props
+    const mergedProps = { ...(channel.props ?? {}), ...props };
+    
+    // Full update with merged props
+    return this.request<Channel>(`/channels/${channelId}`, {
       method: 'PUT',
-      body: JSON.stringify({ props }),
+      body: JSON.stringify({
+        ...channel,
+        props: mergedProps,
+      }),
     });
   }
 
