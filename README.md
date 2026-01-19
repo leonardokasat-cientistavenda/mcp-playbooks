@@ -1,224 +1,200 @@
-# 🎭 MCP Playbooks v2.1.0
+# MCP Mattermost Server
 
-Gerenciador genérico de Playbooks no Mattermost. Permite criar, executar e gerenciar qualquer tipo de processo estruturado.
+MCP server para Mattermost com suporte completo a Playbooks, Runs, Tasks e Context Engineering.
+
+## Features
+
+- **Team dinâmico** - Não fixo na config, passado por chamada
+- **81 tools** organizadas em 8 grupos + 9 helpers
+- **Props support** - User, Team, Channel, Post
+- **Playbooks completo** - PropertyFields, PropertyValues
+- **Tasks** - Check batch (fase inteira), assignee, webhooks
+
+## Instalação
+```bash
+npm install
+cp .env.example .env
+# Editar .env com suas credenciais
+npm run build
+```
 
 ## Configuração
+```env
+MM_URL=https://seu-mattermost.com
+MM_TOKEN=seu-token-aqui
+```
 
-### Variáveis de Ambiente
-
+## Uso com Claude Desktop
 ```json
 {
-  "playbooks-asclepius": {
-    "command": "node",
-    "args": ["/Users/SEU_USUARIO/mcp-servers/mcp-playbooks/index.js"],
-    "env": {
-      "MCP_MATTERMOST_URL": "http://SEU_MATTERMOST:8065",
-      "MCP_MATTERMOST_TOKEN": "TOKEN_DO_BOT",
-      "MCP_MATTERMOST_TEAM_NAME": "nome_do_time_default"
+  "mcpServers": {
+    "mattermost": {
+      "command": "node",
+      "args": ["/caminho/para/mcp-mattermost/dist/index.js"],
+      "env": {
+        "MM_URL": "https://seu-mattermost.com",
+        "MM_TOKEN": "seu-token"
+      }
     }
   }
 }
 ```
 
----
+## Tools Disponíveis
 
-## Times Disponíveis
+### Index
+| Tool | Descrição |
+|------|-----------|
+| `mm_help` | Lista os 8 grupos e suas funções |
 
-| Deus | Emoji | Time |
-|------|-------|------|
-| GENESIS | ⚡ | Coordenação |
-| PROMETHEUS | 🔥 | Código |
-| ASCLEPIUS | ⚕️ | Produto |
-| ATLAS | 🌍 | Backlog |
-| HEFESTO | 🔨 | Infraestrutura |
-| KAIROS | ⏰ | Sprints |
-| PANTHEON | 🏛️ | Casa |
+### 1. User (6 tools)
+| Tool | Descrição |
+|------|-----------|
+| `mm_user_help` | Helper do grupo |
+| `mm_user_get` | Busca user por ID |
+| `mm_user_get_by_username` | Busca user por @username |
+| `mm_user_search` | Lista/busca usuários |
+| `mm_user_create` | Cria novo usuário |
+| `mm_user_update` | Atualiza perfil |
+| `mm_user_update_props` | Atualiza props (config agente) |
 
----
+### 2. Webhook (10 tools)
+| Tool | Descrição |
+|------|-----------|
+| `mm_webhook_help` | Helper do grupo |
+| `mm_webhook_outgoing_create` | Cria webhook outgoing |
+| `mm_webhook_outgoing_list` | Lista webhooks outgoing |
+| `mm_webhook_outgoing_get` | Busca webhook por ID |
+| `mm_webhook_outgoing_update` | Atualiza webhook |
+| `mm_webhook_outgoing_delete` | Remove webhook |
+| `mm_webhook_incoming_create` | Cria webhook incoming |
+| `mm_webhook_incoming_list` | Lista webhooks incoming |
+| `mm_webhook_incoming_get` | Busca webhook por ID |
+| `mm_webhook_incoming_update` | Atualiza webhook |
+| `mm_webhook_incoming_delete` | Remove webhook |
 
-## Comandos Disponíveis
+### 3. Team (7 tools)
+| Tool | Descrição |
+|------|-----------|
+| `mm_team_help` | Helper do grupo |
+| `mm_team_get` | Busca time por ID |
+| `mm_team_get_by_name` | Busca time por nome |
+| `mm_team_list` | Lista todos os times |
+| `mm_team_update_props` | Atualiza props do time |
+| `mm_team_get_members` | Lista membros |
+| `mm_team_add_member` | Adiciona membro |
+| `mm_team_remove_member` | Remove membro |
 
-### 📋 Playbooks (Templates)
+### 4. Channel (11 tools)
+| Tool | Descrição |
+|------|-----------|
+| `mm_channel_help` | Helper do grupo |
+| `mm_channel_get` | Busca canal por ID |
+| `mm_channel_get_by_name` | Busca canal por nome |
+| `mm_channel_list` | Lista canais do time |
+| `mm_channel_search` | Busca canais |
+| `mm_channel_create` | Cria canal |
+| `mm_channel_update` | Atualiza canal |
+| `mm_channel_update_props` | Atualiza props |
+| `mm_channel_delete` | Remove canal |
+| `mm_channel_get_members` | Lista membros |
+| `mm_channel_add_member` | Adiciona membro |
+| `mm_channel_remove_member` | Remove membro |
 
-| Comando | Descrição |
-|---------|-----------|
-| `playbook_list` | Lista playbooks de um time |
-| `playbook_get` | Detalhes completos de um playbook |
-| `playbook_create` | Cria playbook com checklists customizadas |
-| `playbook_delete` | Remove um playbook |
+### 5. Post (14 tools)
+| Tool | Descrição |
+|------|-----------|
+| `mm_post_help` | Helper do grupo |
+| `mm_post_get` | Busca post por ID |
+| `mm_post_get_channel` | Lista posts do canal |
+| `mm_post_get_thread` | Lista posts da thread |
+| `mm_post_search` | Busca posts |
+| `mm_post_create` | Cria post (message + props) |
+| `mm_post_update` | Atualiza message |
+| `mm_post_update_props` | Atualiza props |
+| `mm_post_delete` | Remove post |
+| `mm_post_pin` | Fixa post |
+| `mm_post_unpin` | Desfixa post |
+| `mm_post_get_pinned` | Lista fixados |
+| `mm_post_reaction_add` | Adiciona emoji |
+| `mm_post_reaction_remove` | Remove emoji |
+| `mm_post_reaction_get` | Lista reactions |
 
-### 🏃 Runs (Instâncias)
+### 6. Playbook (9 tools)
+| Tool | Descrição |
+|------|-----------|
+| `mm_playbook_help` | Helper do grupo |
+| `mm_playbook_get` | Busca playbook por ID |
+| `mm_playbook_list` | Lista playbooks |
+| `mm_playbook_create` | Cria playbook |
+| `mm_playbook_update` | Atualiza (webhooks, channel_mode) |
+| `mm_playbook_delete` | Arquiva playbook |
+| `mm_playbook_field_list` | Lista property fields |
+| `mm_playbook_field_create` | Cria field |
+| `mm_playbook_field_update` | Atualiza field |
+| `mm_playbook_field_delete` | Remove field |
 
-| Comando | Descrição |
-|---------|-----------|
-| `run_list` | Lista runs ativos/finalizados |
-| `run_get` | Detalhes do run com status das tasks |
-| `run_start` | Inicia run a partir de um playbook |
-| `run_finish` | Finaliza um run |
-| `run_update_status` | Posta atualização de status |
-| `run_add_participant` | Adiciona usuário ao canal do run |
+### 7. Run (13 tools)
+| Tool | Descrição |
+|------|-----------|
+| `mm_run_help` | Helper do grupo |
+| `mm_run_get` | Busca run por ID |
+| `mm_run_get_by_channel` | Busca run por channel_id |
+| `mm_run_list` | Lista runs |
+| `mm_run_start` | Inicia run (link canal existente) |
+| `mm_run_update` | Atualiza run |
+| `mm_run_finish` | Finaliza run |
+| `mm_run_end` | Encerra run |
+| `mm_run_restart` | Reinicia run |
+| `mm_run_status_update` | Posta status |
+| `mm_run_change_owner` | Troca owner |
+| `mm_run_property_list` | Lista fields + values |
+| `mm_run_property_get` | Busca value |
+| `mm_run_property_set` | Define value (contexto) |
 
-### ✅ Tasks (dentro de Runs)
+### 8. Task (11 tools)
+| Tool | Descrição |
+|------|-----------|
+| `mm_task_help` | Helper do grupo |
+| `mm_task_get` | Busca task específica |
+| `mm_task_add` | Adiciona task |
+| `mm_task_update` | Atualiza (description=prompt) |
+| `mm_task_delete` | Remove task |
+| `mm_task_set_state` | Define estado |
+| `mm_task_check` | Marca como done |
+| `mm_task_uncheck` | Desmarca |
+| `mm_task_set_assignee` | Atribui a usuário |
+| `mm_task_run_command` | Executa slash |
+| `mm_task_reorder` | Reordena |
+| `mm_task_check_checklist` | Marca fase inteira |
 
-| Comando | Descrição |
-|---------|-----------|
-| `task_check` | Marca task como concluída |
-| `task_uncheck` | Desmarca task |
-| `task_add` | Adiciona nova task em uma checklist |
-| `task_update` | Edita título da task |
-| `task_delete` | Remove task |
-| `task_assign` | Atribui task a um usuário |
+## Gavetas de Dados
 
-### 🔧 Utilidades
+| Local | Campo | Tamanho | Uso |
+|-------|-------|---------|-----|
+| Post | message | 16KB | Conteúdo visível |
+| Post | props | 64KB | Metadados invisíveis |
+| Channel | props | 64KB | Config do canal |
+| User | props | 64KB | Config do agente |
+| Team | props | 64KB | Config compartilhada |
+| Run | PropertyValues | 5MB | Contrato, contexto global |
+| Task | description | 64KB | Prompt da task |
 
-| Comando | Descrição |
-|---------|-----------|
-| `teams_list` | Lista times disponíveis |
-| `users_search` | Busca usuários por nome/username |
-
----
-
-## Exemplos de Uso
-
-### Criar um Playbook
-
+## Para Context Engineering
 ```
-"Crie um playbook chamado 'Onboarding Cliente' no time GENESIS com as seguintes fases:
-- Fase 1 - Documentação: Coletar CNPJ, Coletar contrato assinado
-- Fase 2 - Acessos: Criar usuário no sistema, Enviar credenciais
-- Fase 3 - Treinamento: Agendar call, Realizar treinamento"
-```
+LEITURA (Context Builder):
+├── Run.PropertyValues     → Contrato M2, contexto
+├── Task.description       → Prompt da task
+├── Channel.Posts          → Histórico
+└── Post.props             → Metadados
 
-### Listar Playbooks
-
-```
-"Liste os playbooks do time PROMETHEUS"
-```
-
-### Iniciar um Run
-
-```
-"Inicie um run do playbook 'Onboarding Cliente' chamado 'Onboarding - Empresa XYZ'"
-```
-
-### Gerenciar Tasks
-
-```
-"Marque a primeira task da Fase 1 como concluída"
-
-"Adicione uma task 'Validar documentação' na checklist 0"
-
-"Atribua a task ao Leonardo"
-```
-
-### Adicionar Participante
-
-```
-"Busque o usuário João"
-"Adicione o João ao run"
-```
-
----
-
-## Estrutura de um Playbook
-
-```json
-{
-  "name": "Nome do Playbook",
-  "description": "Descrição opcional",
-  "team": "PROMETHEUS",
-  "checklists": [
-    {
-      "title": "Fase 1 - Preparação",
-      "items": [
-        { "title": "Task 1" },
-        { "title": "Task 2" }
-      ]
-    },
-    {
-      "title": "Fase 2 - Execução",
-      "items": [
-        { "title": "Task 3" },
-        { "title": "Task 4" }
-      ]
-    }
-  ]
-}
-```
-
----
-
-## Índices
-
-As checklists e tasks são indexadas a partir de **0**:
-
-```
-Checklist 0: Fase 1
-  └── Item 0: Task 1
-  └── Item 1: Task 2
-Checklist 1: Fase 2
-  └── Item 0: Task 3
-  └── Item 1: Task 4
-```
-
-Para marcar "Task 3" como concluída:
-```
-task_check(run_id, checklist_index=1, item_index=0)
-```
-
----
-
-## Tipos de Playbooks Sugeridos
-
-| Tipo | Uso |
-|------|-----|
-| **Epistemologia M0-M4** | Decisões rastreáveis (Intenção → Contexto → Hipótese → Experimento → Aprendizado) |
-| **Buy in → Roda → Buy out** | Ciclo de aprovação e execução |
-| **Build BPMN** | Construção de processos de negócio |
-| **Build DMN** | Construção de regras de decisão |
-| **Build Worker** | Desenvolvimento de workers/automações |
-| **Onboarding** | Integração de novos clientes/funcionários |
-| **Sprint Planning** | Planejamento de sprints |
-| **Post-Mortem** | Análise pós-incidente |
-| **Release** | Processo de deploy |
-
----
-
-## Fluxo Típico
-
-```
-1. playbook_create    → Cria o template
-2. run_start          → Inicia uma instância
-3. run_add_participant → Adiciona pessoas ao canal
-4. task_check/uncheck → Executa as tasks
-5. task_add           → Adiciona tasks emergentes
-6. run_update_status  → Comunica progresso
-7. run_finish         → Finaliza o processo
+ESCRITA (LLM executa):
+├── Post.message + props   → Resposta + metadados
+├── Run.PropertyValues     → Output estruturado
+├── Task.state = closed    → Marca feito
+└── Task.assignee_id       → Próxima task
 ```
 
----
+## Licença
 
-## Repositório
-
-```
-~/mcp-servers/mcp-playbooks/
-├── index.js          # Código do MCP
-├── package.json      # Dependências
-└── README.md         # Esta documentação
-```
-
----
-
-## Changelog
-
-### v2.1.0
-- Adicionado `run_add_participant` para adicionar usuários ao canal do run
-
-### v2.0.0
-- Removido template M0-M4 hardcoded
-- Playbooks totalmente customizáveis
-- Adicionado suporte multi-team
-- Novas tools: `task_add`, `task_update`, `task_delete`, `task_assign`, `users_search`, `playbook_delete`
-
-### v1.0.0
-- Versão inicial com template M0-M4 fixo
+MIT
