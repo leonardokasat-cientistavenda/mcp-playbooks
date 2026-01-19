@@ -220,6 +220,18 @@ const tools = [
       required: ['run_id', 'message'],
     },
   },
+  {
+    name: 'run_add_participant',
+    description: 'Adiciona um usuário como participante do run (entra no canal)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        run_id: { type: 'string', description: 'ID do run' },
+        user_id: { type: 'string', description: 'ID do usuário a adicionar' },
+      },
+      required: ['run_id', 'user_id'],
+    },
+  },
   
   // ==================== TASKS ====================
   {
@@ -400,6 +412,15 @@ async function handleTool(name, args) {
       return { content: [{ type: 'text', text: `Status atualizado: ${args.message}` }] };
     }
     
+    case 'run_add_participant': {
+      await playbooksRequest(
+        `/runs/${args.run_id}/add-participants`,
+        'POST',
+        { user_ids: [args.user_id] }
+      );
+      return { content: [{ type: 'text', text: `Usuário ${args.user_id} adicionado ao run.` }] };
+    }
+    
     // ==================== TASKS ====================
     case 'task_check': {
       await playbooksRequest(
@@ -489,7 +510,7 @@ async function handleTool(name, args) {
 const server = new Server(
   {
     name: 'mcp-playbooks',
-    version: '2.0.0',
+    version: '2.1.0',
   },
   {
     capabilities: {
@@ -513,7 +534,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('MCP Playbooks v2.0.0 - Generic Playbook Manager');
+  console.error('MCP Playbooks v2.1.0 - Generic Playbook Manager');
 }
 
 main().catch(console.error);
