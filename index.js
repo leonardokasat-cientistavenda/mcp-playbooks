@@ -11,9 +11,35 @@ const fetch = require('node-fetch');
 // Configuração via variáveis de ambiente
 const MATTERMOST_URL = process.env.MCP_MATTERMOST_URL;
 const MATTERMOST_TOKEN = process.env.MCP_MATTERMOST_TOKEN;
-const TEAM_NAME = process.env.MCP_MATTERMOST_TEAM_NAME || 'msagentes';
+const DEFAULT_TEAM = process.env.MCP_MATTERMOST_TEAM_NAME || 'msagentes';
 
 const PLAYBOOKS_API = `${MATTERMOST_URL}/plugins/playbooks/api/v0`;
+
+// Mapa de times ZAZ
+const TEAMS = {
+  'GENESIS': 'gguuwk3tf7bwukyeobkfujfkro',
+  'PROMETHEUS': 'wj5que7njfygpxdq4sijrdjwnr',
+  'ASCLEPIUS': 'aq6yf5wcqjn18c5jyeydpq5qno',
+  'ATLAS': 'kuqseexzjjba8k6s5r9cjrc6fe',
+  'HEFESTO': 'jm3yz5ej67nfbqwtzpksqx1k7a',
+  'KAIROS': 'jr9so35kf38kmn8bowrp3suw8a',
+  'PANTHEON': 'fweo1pmyj3butecr1autkosjhw',
+};
+
+// Helper para resolver team_id
+async function resolveTeamId(teamParam) {
+  if (teamParam && TEAMS[teamParam.toUpperCase()]) {
+    return TEAMS[teamParam.toUpperCase()];
+  }
+  if (teamParam && teamParam.length === 26) {
+    return teamParam;
+  }
+  const response = await fetch(`${MATTERMOST_URL}/api/v4/teams/name/${DEFAULT_TEAM}`, {
+    headers: { 'Authorization': `Bearer ${MATTERMOST_TOKEN}` }
+  });
+  const team = await response.json();
+  return team.id;
+}
 
 // Helper para fazer requests à API do Playbooks
 async function playbooksRequest(endpoint, method = 'GET', body = null) {
@@ -40,19 +66,6 @@ async function playbooksRequest(endpoint, method = 'GET', body = null) {
   return text ? JSON.parse(text) : null;
 }
 
-// Helper para pegar team_id
-let cachedTeamId = null;
-async function getTeamId() {
-  if (cachedTeamId) return cachedTeamId;
-  
-  const response = await fetch(`${MATTERMOST_URL}/api/v4/teams/name/${TEAM_NAME}`, {
-    headers: { 'Authorization': `Bearer ${MATTERMOST_TOKEN}` }
-  });
-  const team = await response.json();
-  cachedTeamId = team.id;
-  return cachedTeamId;
-}
-
 // Helper para pegar user_id do token
 let cachedUserId = null;
 async function getUserId() {
@@ -68,17 +81,30 @@ async function getUserId() {
 
 // Definição das tools
 const tools = [
+  // ==================== TEAMS ====================
   {
-    name: 'playbook_list',
-    description: 'Lista todos os playbooks disponíveis',
+    name: 'teams_list',
+    description: 'Lista os times disponíveis: GENESIS, PROMETHEUS, ASCLEPIUS, ATLAS, HEFESTO, KAIROS, PANTHEON',
     inputSchema: {
       type: 'object',
       properties: {},
     },
   },
+  
+  // ==================== PLAYBOOKS ====================
+  {
+    name: 'playbook_list',
+    description: 'Lista todos os playbooks de um time',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        team: { type: 'string', description: 'Nome do time (GENESIS, PROMETHEUS, etc). Default: PROMETHEUS' },
+      },
+    },
+  },
   {
     name: 'playbook_get',
-    description: 'Obtém detalhes de um playbook específico',
+    description: 'Obtém detalhes completos de um playbook incluindo todas as checklists',
     inputSchema: {
       type: 'object',
       properties: {
@@ -89,49 +115,67 @@ const tools = [
   },
   {
     name: 'playbook_create',
-    description: 'Cria um novo playbook com checklists M0-M4',
+    description: 'Cria um novo playbook com checklists customizadas. Cada checklist tem título e lista de items.',
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Nome do playbook' },
+        name: { type: 'string', description: 'Nome do playbook (ex: "Build BPMN", "Epistemologia M0-M4")' },
         description: { type: 'string', description: 'Descrição do playbook' },
+        team: { type: 'string', description: 'Nome do time. Default: PROMETHEUS' },
         checklists: {
           type: 'array',
-          description: 'Lista de checklists (M0-M4)',
+          description: 'Lista de checklists. Cada checklist: { title: "Nome", items: [{ title: "Task 1" }, { title: "Task 2" }] }',
           items: {
             type: 'object',
             properties: {
-              title: { type: 'string' },
+              title: { type: 'string', description: 'Título da checklist/fase' },
               items: {
                 type: 'array',
                 items: {
                   type: 'object',
                   properties: {
-                    title: { type: 'string' },
+                    title: { type: 'string', description: 'Título da task' },
+                    description: { type: 'string', description: 'Descrição detalhada (opcional)' },
                   },
+                  required: ['title'],
                 },
               },
             },
+            required: ['title', 'items'],
           },
         },
       },
-      required: ['name'],
+      required: ['name', 'checklists'],
     },
   },
   {
-    name: 'run_list',
-    description: 'Lista runs (instâncias de playbooks) ativos',
+    name: 'playbook_delete',
+    description: 'Deleta um playbook',
     inputSchema: {
       type: 'object',
       properties: {
-        playbook_id: { type: 'string', description: 'Filtrar por playbook (opcional)' },
-        status: { type: 'string', description: 'Filtrar por status: InProgress, Finished (opcional)' },
+        playbook_id: { type: 'string', description: 'ID do playbook a deletar' },
+      },
+      required: ['playbook_id'],
+    },
+  },
+  
+  // ==================== RUNS ====================
+  {
+    name: 'run_list',
+    description: 'Lista runs (instâncias) de playbooks',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        team: { type: 'string', description: 'Nome do time. Default: PROMETHEUS' },
+        playbook_id: { type: 'string', description: 'Filtrar por playbook específico (opcional)' },
+        status: { type: 'string', description: 'Filtrar por status: InProgress ou Finished (opcional)' },
       },
     },
   },
   {
     name: 'run_get',
-    description: 'Obtém detalhes de um run específico incluindo checklists',
+    description: 'Obtém detalhes completos de um run incluindo status de todas as tasks',
     inputSchema: {
       type: 'object',
       properties: {
@@ -142,20 +186,20 @@ const tools = [
   },
   {
     name: 'run_start',
-    description: 'Inicia um novo run (buy-in) a partir de um playbook',
+    description: 'Inicia um novo run a partir de um playbook existente',
     inputSchema: {
       type: 'object',
       properties: {
         playbook_id: { type: 'string', description: 'ID do playbook template' },
-        name: { type: 'string', description: 'Nome do run (ex: decisão sendo tomada)' },
-        channel_id: { type: 'string', description: 'ID do canal onde criar o run (opcional)' },
+        name: { type: 'string', description: 'Nome do run (ex: "Migrar para Kubernetes", "Worker de Notificações")' },
+        team: { type: 'string', description: 'Nome do time. Default: PROMETHEUS' },
       },
       required: ['playbook_id', 'name'],
     },
   },
   {
     name: 'run_finish',
-    description: 'Finaliza um run (buy-out)',
+    description: 'Finaliza um run',
     inputSchema: {
       type: 'object',
       properties: {
@@ -166,7 +210,7 @@ const tools = [
   },
   {
     name: 'run_update_status',
-    description: 'Atualiza o status/descrição de um run',
+    description: 'Posta uma atualização de status no run',
     inputSchema: {
       type: 'object',
       properties: {
@@ -176,41 +220,119 @@ const tools = [
       required: ['run_id', 'message'],
     },
   },
+  
+  // ==================== TASKS ====================
   {
     name: 'task_check',
-    description: 'Marca um item de checklist como concluído',
+    description: 'Marca uma task como concluída',
     inputSchema: {
       type: 'object',
       properties: {
         run_id: { type: 'string', description: 'ID do run' },
-        checklist_index: { type: 'number', description: 'Índice da checklist (0=M0, 1=M1, etc)' },
-        item_index: { type: 'number', description: 'Índice do item na checklist' },
+        checklist_index: { type: 'number', description: 'Índice da checklist (0, 1, 2...)' },
+        item_index: { type: 'number', description: 'Índice da task na checklist (0, 1, 2...)' },
       },
       required: ['run_id', 'checklist_index', 'item_index'],
     },
   },
   {
     name: 'task_uncheck',
-    description: 'Desmarca um item de checklist',
+    description: 'Desmarca uma task (volta para não concluída)',
     inputSchema: {
       type: 'object',
       properties: {
         run_id: { type: 'string', description: 'ID do run' },
-        checklist_index: { type: 'number', description: 'Índice da checklist (0=M0, 1=M1, etc)' },
-        item_index: { type: 'number', description: 'Índice do item na checklist' },
+        checklist_index: { type: 'number', description: 'Índice da checklist' },
+        item_index: { type: 'number', description: 'Índice da task' },
       },
       required: ['run_id', 'checklist_index', 'item_index'],
+    },
+  },
+  {
+    name: 'task_add',
+    description: 'Adiciona uma nova task em uma checklist de um run',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        run_id: { type: 'string', description: 'ID do run' },
+        checklist_index: { type: 'number', description: 'Índice da checklist onde adicionar' },
+        title: { type: 'string', description: 'Título da nova task' },
+        description: { type: 'string', description: 'Descrição detalhada (opcional)' },
+      },
+      required: ['run_id', 'checklist_index', 'title'],
+    },
+  },
+  {
+    name: 'task_update',
+    description: 'Atualiza título e/ou descrição de uma task',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        run_id: { type: 'string', description: 'ID do run' },
+        checklist_index: { type: 'number', description: 'Índice da checklist' },
+        item_index: { type: 'number', description: 'Índice da task' },
+        title: { type: 'string', description: 'Novo título' },
+        description: { type: 'string', description: 'Nova descrição' },
+      },
+      required: ['run_id', 'checklist_index', 'item_index', 'title'],
+    },
+  },
+  {
+    name: 'task_delete',
+    description: 'Remove uma task de uma checklist',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        run_id: { type: 'string', description: 'ID do run' },
+        checklist_index: { type: 'number', description: 'Índice da checklist' },
+        item_index: { type: 'number', description: 'Índice da task a remover' },
+      },
+      required: ['run_id', 'checklist_index', 'item_index'],
+    },
+  },
+  {
+    name: 'task_assign',
+    description: 'Atribui uma task a um usuário',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        run_id: { type: 'string', description: 'ID do run' },
+        checklist_index: { type: 'number', description: 'Índice da checklist' },
+        item_index: { type: 'number', description: 'Índice da task' },
+        user_id: { type: 'string', description: 'ID do usuário para atribuir' },
+      },
+      required: ['run_id', 'checklist_index', 'item_index', 'user_id'],
+    },
+  },
+  
+  // ==================== USERS ====================
+  {
+    name: 'users_search',
+    description: 'Busca usuários por nome ou username (para usar em task_assign)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        term: { type: 'string', description: 'Termo de busca (nome ou username)' },
+      },
+      required: ['term'],
     },
   },
 ];
 
 // Implementação das tools
 async function handleTool(name, args) {
-  const teamId = await getTeamId();
   const userId = await getUserId();
   
   switch (name) {
+    // ==================== TEAMS ====================
+    case 'teams_list': {
+      const teamsList = Object.entries(TEAMS).map(([name, id]) => ({ name, id }));
+      return { content: [{ type: 'text', text: JSON.stringify(teamsList, null, 2) }] };
+    }
+    
+    // ==================== PLAYBOOKS ====================
     case 'playbook_list': {
+      const teamId = await resolveTeamId(args.team);
       const playbooks = await playbooksRequest(`/playbooks?team_id=${teamId}`);
       return { content: [{ type: 'text', text: JSON.stringify(playbooks, null, 2) }] };
     }
@@ -221,68 +343,28 @@ async function handleTool(name, args) {
     }
     
     case 'playbook_create': {
-      const defaultChecklists = [
-        {
-          title: 'M0 — Intenção',
-          items: [
-            { title: 'Qual problema estamos resolvendo?' },
-            { title: 'Por que agora?' },
-            { title: 'Quem são os stakeholders?' },
-            { title: 'Qual o critério de sucesso?' },
-          ],
-        },
-        {
-          title: 'M1 — Contexto',
-          items: [
-            { title: 'Que dados/informações temos?' },
-            { title: 'Que restrições existem?' },
-            { title: 'Que decisões anteriores impactam esta?' },
-            { title: 'Quais são os riscos conhecidos?' },
-          ],
-        },
-        {
-          title: 'M2 — Hipótese',
-          items: [
-            { title: 'Qual a proposta de solução?' },
-            { title: 'Que alternativas foram consideradas?' },
-            { title: 'Por que esta e não as outras?' },
-            { title: 'Que pressupostos estamos assumindo?' },
-          ],
-        },
-        {
-          title: 'M3 — Experimento',
-          items: [
-            { title: 'Qual o plano de execução?' },
-            { title: 'Quais os milestones?' },
-            { title: 'Como vamos medir progresso?' },
-            { title: 'Qual o critério de abort?' },
-          ],
-        },
-        {
-          title: 'M4 — Aprendizado',
-          items: [
-            { title: 'O que funcionou?' },
-            { title: 'O que não funcionou?' },
-            { title: 'O que faríamos diferente?' },
-            { title: 'Que novos M0s emergem daqui?' },
-          ],
-        },
-      ];
-      
+      const teamId = await resolveTeamId(args.team);
       const playbook = await playbooksRequest('/playbooks', 'POST', {
         title: args.name,
-        description: args.description || 'Ciclo Epistemológico M0-M4',
+        description: args.description || '',
         team_id: teamId,
         public: true,
         create_public_playbook_run: true,
-        checklists: args.checklists || defaultChecklists,
+        checklists: args.checklists,
         member_ids: [userId],
-        reminder_timer_default_seconds: 86400, // 24 horas
+        reminder_timer_default_seconds: 86400,
       });
       return { content: [{ type: 'text', text: JSON.stringify(playbook, null, 2) }] };
     }
     
+    case 'playbook_delete': {
+      await playbooksRequest(`/playbooks/${args.playbook_id}`, 'DELETE');
+      return { content: [{ type: 'text', text: `Playbook ${args.playbook_id} deletado.` }] };
+    }
+    
+    // ==================== RUNS ====================
     case 'run_list': {
+      const teamId = await resolveTeamId(args.team);
       let endpoint = `/runs?team_id=${teamId}`;
       if (args.playbook_id) endpoint += `&playbook_id=${args.playbook_id}`;
       if (args.status) endpoint += `&statuses=${args.status}`;
@@ -296,6 +378,7 @@ async function handleTool(name, args) {
     }
     
     case 'run_start': {
+      const teamId = await resolveTeamId(args.team);
       const run = await playbooksRequest('/runs', 'POST', {
         playbook_id: args.playbook_id,
         name: args.name,
@@ -307,7 +390,7 @@ async function handleTool(name, args) {
     
     case 'run_finish': {
       await playbooksRequest(`/runs/${args.run_id}/finish`, 'PUT');
-      return { content: [{ type: 'text', text: `Run ${args.run_id} finalizado com sucesso.` }] };
+      return { content: [{ type: 'text', text: `Run ${args.run_id} finalizado.` }] };
     }
     
     case 'run_update_status': {
@@ -317,13 +400,14 @@ async function handleTool(name, args) {
       return { content: [{ type: 'text', text: `Status atualizado: ${args.message}` }] };
     }
     
+    // ==================== TASKS ====================
     case 'task_check': {
       await playbooksRequest(
         `/runs/${args.run_id}/checklists/${args.checklist_index}/item/${args.item_index}/state`,
         'PUT',
         { new_state: 'closed' }
       );
-      return { content: [{ type: 'text', text: `Item marcado como concluído.` }] };
+      return { content: [{ type: 'text', text: `Task [${args.checklist_index}][${args.item_index}] marcada como concluída.` }] };
     }
     
     case 'task_uncheck': {
@@ -332,7 +416,68 @@ async function handleTool(name, args) {
         'PUT',
         { new_state: '' }
       );
-      return { content: [{ type: 'text', text: `Item desmarcado.` }] };
+      return { content: [{ type: 'text', text: `Task [${args.checklist_index}][${args.item_index}] desmarcada.` }] };
+    }
+    
+    case 'task_add': {
+      const result = await playbooksRequest(
+        `/runs/${args.run_id}/checklists/${args.checklist_index}/add`,
+        'POST',
+        { 
+          title: args.title,
+          description: args.description || '',
+        }
+      );
+      return { content: [{ type: 'text', text: `Task "${args.title}" adicionada na checklist ${args.checklist_index}.` }] };
+    }
+    
+    case 'task_update': {
+      await playbooksRequest(
+        `/runs/${args.run_id}/checklists/${args.checklist_index}/item/${args.item_index}`,
+        'PUT',
+        { 
+          title: args.title,
+          command: '',
+        }
+      );
+      return { content: [{ type: 'text', text: `Task [${args.checklist_index}][${args.item_index}] atualizada para "${args.title}".` }] };
+    }
+    
+    case 'task_delete': {
+      await playbooksRequest(
+        `/runs/${args.run_id}/checklists/${args.checklist_index}/item/${args.item_index}`,
+        'DELETE'
+      );
+      return { content: [{ type: 'text', text: `Task [${args.checklist_index}][${args.item_index}] removida.` }] };
+    }
+    
+    case 'task_assign': {
+      await playbooksRequest(
+        `/runs/${args.run_id}/checklists/${args.checklist_index}/item/${args.item_index}/assignee`,
+        'PUT',
+        { assignee_id: args.user_id }
+      );
+      return { content: [{ type: 'text', text: `Task [${args.checklist_index}][${args.item_index}] atribuída ao usuário ${args.user_id}.` }] };
+    }
+    
+    // ==================== USERS ====================
+    case 'users_search': {
+      const response = await fetch(`${MATTERMOST_URL}/api/v4/users/search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${MATTERMOST_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ term: args.term }),
+      });
+      const users = await response.json();
+      const simplified = users.map(u => ({
+        id: u.id,
+        username: u.username,
+        name: `${u.first_name} ${u.last_name}`.trim(),
+        email: u.email,
+      }));
+      return { content: [{ type: 'text', text: JSON.stringify(simplified, null, 2) }] };
     }
     
     default:
@@ -344,7 +489,7 @@ async function handleTool(name, args) {
 const server = new Server(
   {
     name: 'mcp-playbooks',
-    version: '1.0.0',
+    version: '2.0.0',
   },
   {
     capabilities: {
@@ -368,7 +513,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('MCP Playbooks server running on stdio');
+  console.error('MCP Playbooks v2.0.0 - Generic Playbook Manager');
 }
 
 main().catch(console.error);
