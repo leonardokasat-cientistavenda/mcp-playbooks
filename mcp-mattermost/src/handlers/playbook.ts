@@ -5,6 +5,18 @@
 import { z } from 'zod';
 import type { MattermostClient } from '../client.js';
 
+// Schema para items de checklist
+const checklistItemSchema = z.object({
+  title: z.string().describe('Título da task'),
+  description: z.string().optional().describe('Descrição detalhada'),
+});
+
+// Schema para checklist
+const checklistSchema = z.object({
+  title: z.string().describe('Título da checklist/fase'),
+  items: z.array(checklistItemSchema).describe('Lista de tasks'),
+});
+
 export const playbookTools = (client: MattermostClient) => ({
   mm_playbook_get: {
     description: 'Busca playbook por ID. Inclui checklists e config.',
@@ -27,15 +39,39 @@ export const playbookTools = (client: MattermostClient) => ({
   },
 
   mm_playbook_create: {
-    description: 'Cria novo playbook.',
+    description: 'Cria novo playbook. Pode incluir checklists com tasks.',
     schema: z.object({
       team_id: z.string().describe('ID do time'),
       title: z.string().describe('Título'),
       description: z.string().optional().describe('Descrição'),
-      public: z.boolean().optional().describe('Público?'),
+      public: z.boolean().optional().describe('Público? (default: true)'),
+      checklists: z.array(checklistSchema).optional().describe('Lista de checklists com tasks'),
+      reminder_timer_default_seconds: z.number().optional().describe('Timer de reminder em segundos (default: 86400 = 24h)'),
     }),
-    handler: async (params: { team_id: string; title: string; description?: string; public?: boolean }) => {
-      return client.playbookCreate(params);
+    handler: async (params: {
+      team_id: string;
+      title: string;
+      description?: string;
+      public?: boolean;
+      checklists?: Array<{ title: string; items: Array<{ title: string; description?: string }> }>;
+      reminder_timer_default_seconds?: number;
+    }) => {
+      // Monta o payload com defaults obrigatórios
+      const payload = {
+        team_id: params.team_id,
+        title: params.title,
+        description: params.description || '',
+        public: params.public ?? true,
+        create_public_playbook_run: true,
+        reminder_timer_default_seconds: params.reminder_timer_default_seconds ?? 86400,
+        checklists: params.checklists ?? [
+          {
+            title: 'Checklist',
+            items: [{ title: 'Task inicial', description: '' }],
+          },
+        ],
+      };
+      return client.playbookCreate(payload);
     },
   },
 
