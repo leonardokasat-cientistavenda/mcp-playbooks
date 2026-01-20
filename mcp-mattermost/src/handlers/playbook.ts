@@ -5,17 +5,23 @@
 import { z } from 'zod';
 import type { MattermostClient } from '../client.js';
 
-// Schema para items de checklist
-const checklistItemSchema = z.object({
+// Schema para items de checklist (input - apenas campos necessários na criação)
+const checklistItemInputSchema = z.object({
   title: z.string().describe('Título da task'),
   description: z.string().optional().describe('Descrição detalhada'),
 });
 
-// Schema para checklist
-const checklistSchema = z.object({
+// Schema para checklist (input - apenas campos necessários na criação)
+const checklistInputSchema = z.object({
   title: z.string().describe('Título da checklist/fase'),
-  items: z.array(checklistItemSchema).describe('Lista de tasks'),
+  items: z.array(checklistItemInputSchema).describe('Lista de tasks'),
 });
+
+// Tipo para input de checklist (diferente do tipo de resposta que tem mais campos)
+type ChecklistInput = {
+  title: string;
+  items: Array<{ title: string; description?: string }>;
+};
 
 export const playbookTools = (client: MattermostClient) => ({
   mm_playbook_get: {
@@ -45,7 +51,7 @@ export const playbookTools = (client: MattermostClient) => ({
       title: z.string().describe('Título'),
       description: z.string().optional().describe('Descrição'),
       public: z.boolean().optional().describe('Público? (default: true)'),
-      checklists: z.array(checklistSchema).optional().describe('Lista de checklists com tasks'),
+      checklists: z.array(checklistInputSchema).optional().describe('Lista de checklists com tasks'),
       reminder_timer_default_seconds: z.number().optional().describe('Timer de reminder em segundos (default: 86400 = 24h)'),
     }),
     handler: async (params: {
@@ -53,10 +59,12 @@ export const playbookTools = (client: MattermostClient) => ({
       title: string;
       description?: string;
       public?: boolean;
-      checklists?: Array<{ title: string; items: Array<{ title: string; description?: string }> }>;
+      checklists?: ChecklistInput[];
       reminder_timer_default_seconds?: number;
     }) => {
       // Monta o payload com defaults obrigatórios
+      // Nota: O tipo de input da API é diferente do tipo de resposta (Checklist)
+      // Na criação, a API aceita apenas title e items, sem id/items_order/update_at
       const payload = {
         team_id: params.team_id,
         title: params.title,
@@ -71,7 +79,8 @@ export const playbookTools = (client: MattermostClient) => ({
           },
         ],
       };
-      return client.playbookCreate(payload);
+      // Cast para any porque o tipo de input difere do tipo Partial<Playbook>
+      return client.playbookCreate(payload as any);
     },
   },
 
