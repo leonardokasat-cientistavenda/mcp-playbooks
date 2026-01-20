@@ -370,10 +370,21 @@ export class MattermostClient {
     }, true);
   }
 
-  async playbookUpdate(playbookId: string, playbook: Partial<Playbook>): Promise<{ status: string }> {
+  /**
+   * Update playbook using full update (GET + merge + PUT).
+   * The Playbooks API requires all fields to be sent on PUT.
+   */
+  async playbookUpdate(playbookId: string, updates: Partial<Playbook>): Promise<{ status: string }> {
+    // Get current playbook state
+    const playbook = await this.playbookGet(playbookId);
+    
+    // Merge updates into current state
+    const merged = { ...playbook, ...updates };
+    
+    // Full update with merged data
     return this.request(`/playbooks/${playbookId}`, {
       method: 'PUT',
-      body: JSON.stringify(playbook),
+      body: JSON.stringify(merged),
     }, true);
   }
 
