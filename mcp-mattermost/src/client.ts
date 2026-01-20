@@ -44,11 +44,23 @@ export class MattermostClient {
       throw new Error(`Mattermost API error: ${response.status} - ${error}`);
     }
 
+    // Handle empty responses (204 No Content or empty body)
     if (response.status === 204) {
       return { status: 'ok' } as T;
     }
 
-    return response.json() as Promise<T>;
+    // Try to parse JSON, return status ok if empty
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      return { status: 'ok' } as T;
+    }
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // If JSON parse fails but response was successful, return ok
+      return { status: 'ok' } as T;
+    }
   }
 
   // ==========================================================================
